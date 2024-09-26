@@ -58,9 +58,10 @@ if strategy == "Organic":
 
 proportions = "0.2_0.6_0.2"
 model = "RecVAE"
-c = "0.75"
-gamma = "0.75"
-eta_random = "0.0"
+
+c = "0.75" # Inertia parameter
+gamma = "0.75" # Resistance parameter
+eta_random = "0.0" # Random parameter
 
 program_to_call = 'start/handle_modules.py'
 

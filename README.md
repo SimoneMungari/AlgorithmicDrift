@@ -1,5 +1,5 @@
 # AlgorithmicDrift
-1) Configure the run settings in main.py (model, gamma, eta, and so on)
+1) Configure the run settings in main.py (model, delta, gamma, eta)
 2) Run main.py
 
 Configuration details:
