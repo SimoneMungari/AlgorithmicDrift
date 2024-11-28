@@ -17,7 +17,7 @@ from recbole.config import Config
 from recbole.data.utils import *
 from graph_generation import generate_graphs, generate_organic_graphs, create_T_tensor
 from utils.load_data import get_dataset, create_dataset_recbole
-from utils.model_utils import load_model, train_model, get_parameter_dict, rewire_train
+from utils.model_utils import load_model, train_model, get_parameter_dict
 from utils.data_utils import create_folders, get_dataset_name_and_paths, get_parsed_args
 
 args = get_parsed_args(sys.argv)
@@ -182,15 +182,25 @@ elif args["module"] == "generation":
 
     topk = args["topk"]
     c = float(args["c"])
-    gamma = float(args["gamma"])
+
+    gamma_non_rad = float(args["gamma_non_rad"])
+    gamma_semi_rad = float(args["gamma_semi_rad"])
+    gamma_rad = float(args["gamma_rad"])
+    gamma_list = [gamma_non_rad, gamma_semi_rad, gamma_rad]
+
+    sigma_gamma_non_rad = float(args["sigma_gamma_non_rad"])
+    sigma_gamma_semi_rad = float(args["sigma_gamma_semi_rad"])
+    sigma_gamma_rad = float(args["sigma_gamma_rad"])
+    sigma_gamma_list = [sigma_gamma_non_rad, sigma_gamma_semi_rad, sigma_gamma_rad]
+
     eta_random = float(args["eta_random"])
 
     graphs_folder = saving_path + args["model"] + "/graphs/topk_" + str(topk) + "/"
 
     print(graphs_folder)
 
-    B = 1#50
-    d = 1#100
+    B = 2#50
+    d = 100
 
     T_tensor = create_T_tensor(
         history_dataset,
@@ -231,6 +241,7 @@ elif args["module"] == "generation":
             utils_dicts=utils_dicts,
             dataset_path=dataset_path,
             c=c,
-            gamma=gamma,
+            gamma_list=gamma_list,
+            sigma_gamma_list=sigma_gamma_list,
             eta=eta_random
         )

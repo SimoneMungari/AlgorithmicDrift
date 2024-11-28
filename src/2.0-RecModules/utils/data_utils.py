@@ -56,13 +56,20 @@ def get_parsed_args(argv):
     user_count_end = 500  # num_users
     gpu_id = "0"
     c = 1.0
-    gamma = 1.0
+    gamma_non_rad = 1.0
+    gamma_semi_rad = 1.0
+    gamma_rad = 1.0
+    sigma_gamma_non_rad = 1.0
+    sigma_gamma_semi_rad = 1.0
+    sigma_gamma_rad = 1.0
     eta_random = 0.01
 
     if len(argv) > 1:
 
         if argv[2].startswith("SyntheticDataset"):
-            _, path, folder, model, module, proportions, strategy, user_count_start, user_count_end, gpu_id, c, gamma, eta_random = argv
+            _, path, folder, model, module, proportions, strategy, user_count_start, user_count_end, gpu_id, c,\
+                gamma_non_rad, gamma_semi_rad, gamma_rad, sigma_gamma_non_rad,\
+                sigma_gamma_semi_rad, sigma_gamma_rad, eta_random = argv
 
             topk = int(topk)
             user_count_start = int(user_count_start)
@@ -79,7 +86,8 @@ def get_parsed_args(argv):
                 topk,
                 user_count_start,
                 user_count_end,
-                gpu_id, c, gamma, eta_random)
+                gpu_id, c, gamma_non_rad, gamma_semi_rad, gamma_rad, sigma_gamma_non_rad,
+                sigma_gamma_semi_rad, sigma_gamma_rad, eta_random)
 
     keys = [
         "path",
@@ -93,9 +101,11 @@ def get_parsed_args(argv):
         "user_count_end",
         "gpu_id",
         "c",
-        "gamma", "eta_random"]
+        "gamma_non_rad", "gamma_semi_rad", "gamma_rad", "sigma_gamma_non_rad",
+                "sigma_gamma_semi_rad", "sigma_gamma_rad", "eta_random"]
     values = [path, folder, model, module, proportions, strategy, topk,
-              user_count_start, user_count_end, gpu_id, c, gamma, eta_random]
+              user_count_start, user_count_end, gpu_id, c, gamma_non_rad, gamma_semi_rad, gamma_rad, sigma_gamma_non_rad,
+                sigma_gamma_semi_rad, sigma_gamma_rad, eta_random]
 
     args = dict(zip(keys, values))
 

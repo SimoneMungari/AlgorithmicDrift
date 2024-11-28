@@ -19,7 +19,8 @@ from os.path import exists
 from recbole.data.utils import *
 
 from models.recvae import RecVAE
-
+from models.lightgcn import LightGCN
+from models.ngcf import NGCF
 
 def get_parameter_dict(args, model_checkpoint_folder):
     model = args["model"]
@@ -43,6 +44,10 @@ def get_parameter_dict(args, model_checkpoint_folder):
         parameter_dict["hidden_dimension"] = 512
         parameter_dict["latent_dimension"] = 512
         parameter_dict["epochs"] = 100
+    elif model == "LightGCN" or model == "NGCF":
+        parameter_dict["neg_sampling"] = {"uniform": 1}
+        parameter_dict["embedding_size"] = 1024
+        parameter_dict["epochs"] = 200
 
     return parameter_dict
 
@@ -88,65 +93,6 @@ def convert_dataset_to_dataframe(dataset, utils_dicts, non_rad_users, semi_rad_u
     return df
 
 
-def rewire_train(data, utils_dicts, non_rad_users, semi_rad_users, args, saving_path=None):
-    rewiring_strategy = args["sub_strategy"]
-    factor = args["factor"]
-
-    discard_percentage = float("0." + factor.split("_")[1])
-
-    train_data, valid_data, test_data = data
-
-    train_df = convert_dataset_to_dataframe(train_data.dataset, utils_dicts,
-                                            non_rad_users, semi_rad_users)
-
-    valid_df = convert_dataset_to_dataframe(valid_data.dataset, utils_dicts,
-                                            non_rad_users, semi_rad_users)
-
-    test_df = convert_dataset_to_dataframe(test_data.dataset, utils_dicts,
-                                           non_rad_users, semi_rad_users)
-
-    df_for_videos_to_exclude = pd.concat((valid_df, test_df)).reset_index(drop=True)
-    rewired_train_df = start_rewiring(train_df, df_for_videos_to_exclude, rewiring_strategy, discard_percentage)
-
-    rewired_history_df = pd.concat((copy.deepcopy(rewired_train_df), valid_df, test_df)).reset_index(drop=True)
-
-    if saving_path is not None:
-        videos_labels_dict, videos_slants_dict, reverse_users_dict, reverse_videos_dict = utils_dicts
-
-        rewired_fn = "Histories_eta_{}.tsv".format(args["eta"])
-        rewired_path = saving_path + rewired_fn
-
-        reversed_rewired_history_df = rewired_history_df.copy()
-
-        reversed_rewired_history_df["User"] = [reverse_users_dict[x] for x in reversed_rewired_history_df["User"]]
-        reversed_rewired_history_df["Item"] = [reverse_videos_dict[x] for x in reversed_rewired_history_df["Item"]]
-
-        # if not exists(rewired_path):
-        reversed_rewired_history_df.to_csv(rewired_path, header=["User", "Video", "Label", "Orientation", "Slant"],
-                                           sep="\t", index=False)
-
-    history_dataset = {}
-
-    users_group = rewired_history_df.groupby("User")
-    for user, _ in users_group:
-        interactions = list(users_group.get_group(user)["Item"])
-        history_dataset[user] = interactions
-
-    rewired_train_df['User'] = rewired_train_df['User'] + 1
-    rewired_train_df['Item'] = rewired_train_df['Item'] + 1
-
-    rewired_train_df = rewired_train_df.assign(item_value=np.ones(len(rewired_train_df)))
-    rewired_train_df = rewired_train_df.assign(user_id=rewired_train_df['User'])
-    rewired_train_df = rewired_train_df.assign(item_id=rewired_train_df['Item'])
-
-    rewired_train_df = rewired_train_df[['user_id', 'item_id', 'item_value']]
-
-    interaction = Interaction(rewired_train_df)
-
-    train_data.dataset = train_data.dataset.copy(interaction)
-    return train_data, history_dataset
-
-
 def get_model_structure_and_trainer(
         config,
         logger,
@@ -182,6 +128,19 @@ def get_model_structure_and_trainer(
             config["device"])
 
         trainer = RecVAETrainer(config, model)
+    elif model_name == "LightGCN" or model_name == "NGCF":
+
+        if model_name == "LightGCN":
+            model = LightGCN(config,
+                             train_data.dataset,
+                             mean_slant_users=mean_slant_users,
+                             items_labels=items_labels,
+                             num_users=num_users,
+                             num_items=num_items).to(config["device"])
+        elif model_name == "NGCF":
+            model = NGCF(config, train_data.dataset).to(config["device"])
+
+        trainer = Trainer(config, model)
 
     return model, trainer, (train_data, valid_data, test_data), history_dataset
 
@@ -208,7 +167,6 @@ def load_model(
         mean_slant_users=mean_slant_users, items_labels=items_labels, history_dataset=history_dataset,
         num_users=num_users, num_items=num_items, non_rad_users=non_rad_users, semi_rad_users=semi_rad_users,
         transient_nodes=transient_nodes, reverse_videos_dict=reverse_videos_dict, saving_path=saving_path)
-
 
     model_files = os.listdir(model_checkpoint_folder)
     checkpoint_file = model_files[-1]

@@ -11,22 +11,12 @@ from scipy.sparse import lil_matrix
 from scipy.spatial.distance import cdist
 import scipy
 from sklearn.preprocessing import normalize
-import numpy as np
-import pandas as pd
 import time
-import copy
-import matplotlib.pyplot as plt
-import torch
-from torch.distributions.multivariate_normal import MultivariateNormal
-# from scipy.stats import multivariate_normal
+from scipy.stats import beta
 
 from recbole.data.utils import *
-from recbole.config import Config
-from recbole.utils import init_logger, init_seed
-from recbole.model.context_aware_recommender import *
-from recbole.trainer import *
-
 from utils.model_utils import load_model
+
 def softmax(x):
     """Compute softmax values for each sets of scores in x."""
     e_x = np.exp(x - np.max(x))
@@ -371,7 +361,8 @@ def generate_graphs(
         utils_dicts=None,
         dataset_path=None,
         c=1.0,
-        gamma=1.0,
+        gamma_list=[1.0, 1.0, 1.0],
+        sigma_gamma_list=[1e-3, 1e-3, 1e-3],
         eta=0.01):
     np.warnings.filterwarnings('ignore', category=np.VisibleDeprecationWarning)
     warnings.simplefilter(
@@ -422,9 +413,21 @@ def generate_graphs(
 
     X, Y, shrinkage_alpha, noise_cov = prepare_organic_model(dataset_path, reverse_videos_dict)
 
-    graphs_folder = graphs_folder + "{}_{}_gamma_{}_eta_{}/".format(c, 1-c, gamma, eta)
+    graphs_folder = graphs_folder + "{}_{}_gamma1_{}_sigmagamma1_{}_gamma2_{}_sigmagamma2_{}" \
+                                    "_gamma3_{}_sigmagamma3_{}_eta_{}/".format(c, 1-c, gamma_list[0], sigma_gamma_list[0],
+                                                                               gamma_list[1], sigma_gamma_list[1],
+                                                                               gamma_list[2], sigma_gamma_list[2], eta)
 
     utilities = []  # final "accuracies" (mean of axis=1) per user
+
+    a_non_rad = gamma_list[0] * (gamma_list[0] * (1 - gamma_list[0]) / (sigma_gamma_list[0] ** 2) - 1)
+    b_non_rad = a_non_rad * (1 / gamma_list[0] - 1)
+
+    a_semi_rad = gamma_list[1] * (gamma_list[1] * (1 - gamma_list[1]) / (sigma_gamma_list[1] ** 2) - 1)
+    b_semi_rad = a_semi_rad * (1 / gamma_list[1] - 1)
+
+    a_rad = gamma_list[2] * (gamma_list[2] * (1 - gamma_list[2]) / (sigma_gamma_list[2] ** 2) - 1)
+    b_rad = a_rad * (1 / gamma_list[2] - 1)
 
     for iter_b in range(B):
 
@@ -470,6 +473,15 @@ def generate_graphs(
 
             for i in range(len(topk_recommendations)):
 
+                gamma = 1.0
+
+                if i in non_rad_users:
+                    gamma = np.random.beta(a_non_rad, b_non_rad, size=1)#dist_non_rad.rvs(size=1)
+                elif i in semi_rad_users:
+                    gamma = np.random.beta(a_semi_rad, b_semi_rad, size=1)#dist_semi_rad.rvs(size=1)
+                else:
+                    gamma = np.random.beta(a_rad, b_rad, size=1)#dist_rad.rvs(size=1)
+
                 if np.random.binomial(1, gamma):
                     if np.random.binomial(1, eta):
                         items_available = list(set(np.arange(1, num_items + 1)) - set(temp_histories[i]))
@@ -477,8 +489,10 @@ def generate_graphs(
 
                     else:
                         # nullify_history_scores(temp_histories, scores)
-                        organic_preferences[i][temp_histories[i] - 1] = -10000  # nullify
-                        item_sampled = np.argmax(organic_preferences[i]) + 1  # +1 to be consistent
+                        organic_preferences_user_tmp = copy.deepcopy(organic_preferences[i])
+                        organic_preferences_user_tmp[temp_histories[i] - 1] = -10000
+                        #organic_preferences[i][temp_histories[i] - 1] = -10000  # nullify
+                        item_sampled = np.argmax(organic_preferences_user_tmp) + 1  # +1 to be consistent
                 else:
                     items_exposure[i][topk_recommendations[i].detach().cpu().numpy() - 1] += 1
 

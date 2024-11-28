@@ -38,7 +38,7 @@ if not exists(path):
 if not exists(path + folder):
     os.makedirs(path + folder)
 
-gpu_id = "2"
+gpu_id = "cpu"
 
 user_count_start_args = "0"
 user_count_end_args = "2000"
@@ -56,12 +56,19 @@ strategy = "No_strategy"
 if strategy == "Organic":
     module = "generation"
 
-proportions = "0.2_0.6_0.2"
+proportions = "0.05_0.9_0.05"
 model = "RecVAE"
+c = "0.75"
 
-c = "0.75" # Inertia parameter
-gamma = "0.75" # Resistance parameter
-eta_random = "0.0" # Random parameter
+gamma_non_rad = "0.5"
+gamma_semi_rad = "0.99"
+gamma_rad = "0.75"
+
+sigma_gamma_non_rad = "0.01"
+sigma_gamma_semi_rad = "0.01"
+sigma_gamma_rad = "0.01"
+
+eta_random = "0.0"
 
 program_to_call = 'start/handle_modules.py'
 
@@ -79,7 +86,8 @@ process_args_1 = ["python",
               user_count_start_args,
               user_count_end_args,
               gpu_id,
-              c, gamma, eta_random]
+              c, gamma_non_rad, gamma_semi_rad, gamma_rad, sigma_gamma_non_rad, sigma_gamma_semi_rad,
+                  sigma_gamma_rad, eta_random]
 
 process_args_2 = ["python",
               program_to_call,
@@ -92,7 +100,8 @@ process_args_2 = ["python",
               user_count_start_args,
               user_count_end_args,
               gpu_id,
-              c, gamma, eta_random]
+              c, gamma_non_rad, gamma_semi_rad, gamma_rad, sigma_gamma_non_rad, sigma_gamma_semi_rad,
+                  sigma_gamma_rad, eta_random]
 
 handle_processes(process_args_1, 0)
 handle_processes(process_args_2, 0)

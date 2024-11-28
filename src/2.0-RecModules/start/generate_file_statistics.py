@@ -1,58 +1,17 @@
 from igraph import *
-import matplotlib.pyplot as plt
-import cairo
 import networkx as nx
-import os
-import time
-import random
-import argparse
-import pickle
-import numpy as np
-from tqdm import tqdm
 from os.path import join, exists
-import ast
-
-import torch
-from torch import nn
-from torch.utils.data import DataLoader
-import torch.nn.functional as F
-import torch.optim as optim
-from torch.optim.lr_scheduler import StepLR
-from torch.autograd import Variable
-from torch.backends import cudnn
-
-import argparse
-import time
-import csv
-import pickle
-import operator
-import datetime
 import os
-from tqdm import tqdm
-
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
-
-import pickle
-import torch
-from torch.utils.data import Dataset
 import numpy as np
 
-import collections
 import pandas as pd
-import seaborn as sns
 
 from scipy.sparse import csr_matrix
 from sklearn.preprocessing import normalize
 from floweaver import *
-import matplotlib as mpl
-import matplotx
-import copy
 
 from os import listdir
-from os.path import isfile, join
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -496,7 +455,7 @@ folder = 'SyntheticDataset/History/'
 
 orientations = ["non radicalized", "semi-radicalized", "radicalized"]
 
-weights_c_list = ["0.75_0.25_gamma_0.75_eta_0.0/"]
+weights_c_list = ["0.75_0.25_gamma1_0.5_sigmagamma1_0.01_gamma2_0.99_sigmagamma2_0.01_gamma3_0.75_sigmagamma3_0.01_eta_0.0/"]
 models_to_load = ["RecVAE", "Organic"]
 
 datasets_for_statistics = ["0.2_0.6_0.2"]
