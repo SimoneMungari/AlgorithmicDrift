@@ -63,8 +63,6 @@ class LightGCN(GeneralRecommender):
     def __init__(self,
                  config,
                  dataset,
-                 mean_slant_users,
-                 items_labels,
                  num_users,
                  num_items):
         super(LightGCN, self).__init__(config, dataset)
@@ -101,8 +99,6 @@ class LightGCN(GeneralRecommender):
         self.apply(xavier_uniform_initialization)
         self.other_parameter_name = ['restore_user_e', 'restore_item_e']
 
-        self.mean_slant_users = mean_slant_users
-        self.items_labels = items_labels
         self.num_users = num_users
         self.num_items = num_items
 
@@ -181,14 +177,14 @@ class LightGCN(GeneralRecommender):
             lightgcn_all_embeddings, [self.n_users, self.n_items])
         return user_all_embeddings, item_all_embeddings
 
-    def forward_gen_graph(self, users, items, values, user_count_start):
+    def forward_gen_graph(self, users, items, values):
         all_embeddings = self.get_ego_embeddings().to(self.device)
         embeddings_list = [all_embeddings]
 
         new_interaction_matrix = torch.zeros(1).to(self.device).repeat(
             users.shape[0] + 1, self.n_items)  # self.get_rating_matrix(users)
 
-        reindexed_users = users - user_count_start - 1
+        reindexed_users = users - 1
 
         col_indices = items[reindexed_users].flatten()
         row_indices = torch.arange(
@@ -256,7 +252,7 @@ class LightGCN(GeneralRecommender):
 
         return loss
 
-    def predict_for_graphs(self, interaction, user_count_start):
+    def predict_for_graphs(self, interaction):
         users = interaction[self.USER_ID]
         items = interaction[self.ITEM_ID]
         values = interaction['item_value']
@@ -264,7 +260,7 @@ class LightGCN(GeneralRecommender):
         users = users.detach().cpu().numpy()
 
         user_all_embeddings, item_all_embeddings = self.forward_gen_graph(
-            users, items, values, user_count_start)
+            users, items, values)
 
         u_embeddings = user_all_embeddings[users]
         # i_embeddings = item_all_embeddings[items]

@@ -117,8 +117,6 @@ class RecVAE(GeneralRecommender):
             self,
             config,
             dataset,
-            mean_slant_users,
-            items_labels,
             num_users,
             num_items):
         super(RecVAE, self).__init__(config, dataset)
@@ -147,8 +145,6 @@ class RecVAE(GeneralRecommender):
 
         # reweighting_mitigation parameters
 
-        self.mean_slant_users = mean_slant_users
-        self.items_labels = items_labels
         self.num_users = num_users
         self.num_items = num_items
 
@@ -232,7 +228,7 @@ class RecVAE(GeneralRecommender):
         return scores[[torch.arange(len(items)).to(self.device), items]]
 
     @torch.inference_mode()
-    def predict_for_graphs(self, interaction, user_count_start):
+    def predict_for_graphs(self, interaction):
         users = interaction[self.USER_ID].to(self.device)
         items = interaction[self.ITEM_ID].to(self.device)
         values = interaction['item_value'].to(self.device)
@@ -244,7 +240,7 @@ class RecVAE(GeneralRecommender):
             users.shape[0],
             self.n_items)  # self.get_rating_matrix(users)
 
-        users = users - user_count_start - 1
+        users = users - 1
 
         if self.device == 'cuda':
             col_indices = items[users].flatten().cuda()

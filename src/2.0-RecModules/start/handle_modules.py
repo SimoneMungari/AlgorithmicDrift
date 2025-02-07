@@ -20,11 +20,21 @@ from utils.load_data import get_dataset, create_dataset_recbole
 from utils.model_utils import load_model, train_model, get_parameter_dict
 from utils.data_utils import create_folders, get_dataset_name_and_paths, get_parsed_args
 
+
 args = get_parsed_args(sys.argv)
 print(args)
 
-if args["gpu_id"] != "cpu":
+if torch.cuda.is_available() and args["gpu_id"] != "cpu":
+    print("Here GPU")
     torch.cuda.set_device(int(args["gpu_id"]))
+else:
+    print("Not Here GPU")
+
+
+SYNTHETIC = args["synthetic"]
+introduce_bias = args["introduce_bias"]
+target = args["target"]
+influence_percentage = args["influence_percentage"]
 
 dataset_path, dataset_name, saving_path = get_dataset_name_and_paths(args)
 
@@ -33,7 +43,7 @@ print(dataset_path + dataset_name, saving_path)
 history_dataset, uir_dataset, utils_dicts = get_dataset(
     dataset_path + dataset_name + ".tsv")
 
-videos_labels_dict, videos_slants_dict, reverse_users_dict, reverse_videos_dict = utils_dicts
+videos_labels_dict, videos_slants_dict, reverse_users_dict, reverse_videos_dict, reverse_videos_labels_dict = utils_dicts
 
 users = list(set([i[0] for i in uir_dataset]))
 
@@ -45,25 +55,18 @@ df = pd.DataFrame(
         "Rating",
         "Orientation",
         "Label"])
-df["Label"] = np.where(df["Label"] == "harmful", 1, 0)
 
-df = df.sort_values(by=["Item"])
 items = df["Item"].unique()
-items_labels = df[["Item", "Label"]].groupby(
-    "Item").mean().to_numpy().reshape(-1)
 
-items_recbole = [0] + list(np.array(items) + 1)
-items_counts_non_rad = np.array(
-    list(zip(items_recbole, np.zeros(len(items_recbole), dtype=int))))
+# items_labels = df[["Item", "Label"]].drop_duplicates()
+# item_label_dict = dict(zip(items_labels["Item"], items_labels["Label"]))
 
-df = df.sort_values("User")
-mean_slant_users = df[["User", "Label"]].groupby("User").mean().to_numpy()
-non_rad_users = df[df["Orientation"] == 'non radicalized']["User"].unique()
-semi_rad_users = df[df["Orientation"] == 'semi-radicalized']["User"].unique()
+# If synthetic: Non-Rad 0, Rad 1, Semi-Rad 2
+# In general, alphabetic order
+orientations = list(np.sort(df["Orientation"].unique()))
 
-# add fake user and fake item
-mean_slant_users = np.insert(mean_slant_users, 0, 0.0)
-items_labels = np.insert(items_labels, 0, 0)
+users_orientations = df[["User", "Orientation"]].drop_duplicates()
+user_orientation_dict = dict(zip(users_orientations["User"], list(map(orientations.index, users_orientations["Orientation"]))))
 
 num_interactions = len(uir_dataset)
 num_users = len(users)
@@ -93,7 +96,10 @@ print("MODEL CHECKPOINT:", model_checkpoint_folder)
 
 parameter_dict = get_parameter_dict(args, model_checkpoint_folder)
 
-dataset = "{}".format(args["proportions"])
+if SYNTHETIC:
+    dataset = "{}".format(args["proportions"])
+else:
+    dataset = "{}".format(args["name"])
 
 model = args["model"]
 
@@ -123,30 +129,14 @@ logger.addHandler(c_handler)
 density = num_interactions / (num_users * num_items)
 print("Dataset density:", np.around(density, decimals=3))
 
-transient_nodes = [reverse_videos_dict[x]
-                   for x in items if videos_labels_dict[x] == "harmful"]
-neutral_nodes = [reverse_videos_dict[x]
-                 for x in items if videos_labels_dict[x] == "neutral"]
-
-print("Percentage harmful on", num_items, "videos:", np.around(
-    len(transient_nodes) / num_items, decimals=2) * 100, "%")
-
 if args["module"] == "training":
 
     train_model(
         args=args,
         model_checkpoint_folder=model_checkpoint_folder,
         config=config,
-        users=users,
-        logger=logger,
         num_users=num_users,
-        num_items=num_items,
-        utils_dicts=utils_dicts,
-        non_rad_users=non_rad_users,
-        semi_rad_users=semi_rad_users,
-        mean_slant_users=mean_slant_users,
-        items_labels=items_labels,
-        saving_path=saving_path)
+        num_items=num_items)
 
 elif args["module"] == "evaluation":
 
@@ -154,11 +144,10 @@ elif args["module"] == "evaluation":
 
     model, data, _, checkpoint_path, checkpoint_file, trainer = load_model(
         model_checkpoint_folder=model_checkpoint_folder,
-        config=config, logger=logger, utils_dicts=utils_dicts,
-        non_rad_users=non_rad_users, semi_rad_users=semi_rad_users, users=users,
-        num_users=num_users, num_items=num_items, transient_nodes=transient_nodes,
-        history_dataset=history_dataset, items_labels=items_labels,
-        args=args, saving_path=saving_path)
+        config=config,
+        num_users=num_users, num_items=num_items,
+        history_dataset=history_dataset,
+        args=args)
 
     _, _, test_data = data
 
@@ -183,38 +172,30 @@ elif args["module"] == "generation":
     topk = args["topk"]
     c = float(args["c"])
 
-    gamma_non_rad = float(args["gamma_non_rad"])
-    gamma_semi_rad = float(args["gamma_semi_rad"])
-    gamma_rad = float(args["gamma_rad"])
-    gamma_list = [gamma_non_rad, gamma_semi_rad, gamma_rad]
-
-    sigma_gamma_non_rad = float(args["sigma_gamma_non_rad"])
-    sigma_gamma_semi_rad = float(args["sigma_gamma_semi_rad"])
-    sigma_gamma_rad = float(args["sigma_gamma_rad"])
-    sigma_gamma_list = [sigma_gamma_non_rad, sigma_gamma_semi_rad, sigma_gamma_rad]
-
     eta_random = float(args["eta_random"])
 
     graphs_folder = saving_path + args["model"] + "/graphs/topk_" + str(topk) + "/"
 
     print(graphs_folder)
 
-    B = 2#50
+    B = 50
     d = 100
 
     T_tensor = create_T_tensor(
         history_dataset,
-        user_count_start=args["user_count_start"],
-        user_count_end=args["user_count_end"],
         num_items=num_items)
 
     if args["strategy"] == "Organic":
         graphs_folder = saving_path + "graphs/"
         if not exists(graphs_folder):
             os.makedirs(graphs_folder)
-        generate_organic_graphs(T_tensor, history_dataset, dataset_name, dataset_path, B, d, items_labels,
-                                reverse_users_dict, reverse_videos_dict, transient_nodes,
-                                saving_path, graphs_folder, args)
+
+        if SYNTHETIC:
+            generate_organic_graphs(T_tensor, history_dataset, dataset_name, dataset_path, B, d,
+                                    reverse_users_dict, reverse_videos_dict, reverse_videos_labels_dict,
+                                    saving_path)
+        # else:
+
     else:
         generate_graphs(
             T_tensor,
@@ -225,23 +206,22 @@ elif args["module"] == "generation":
             topk=topk,
             num_items=num_items,
             num_users=num_users,
-            items_labels=items_labels,
             users=users,
-            non_rad_users=non_rad_users,
-            semi_rad_users=semi_rad_users,
-            saving_path=saving_path,
+            user_orientation_dict=user_orientation_dict,
             reverse_users_dict=reverse_users_dict,
             reverse_videos_dict=reverse_videos_dict,
             model_checkpoint_folder=model_checkpoint_folder,
             config=config,
-            logger=logger,
-            transient_nodes=transient_nodes,
+            item_label_dict=videos_labels_dict,
+            reverse_videos_labels_dict=reverse_videos_labels_dict,
             graphs_folder=graphs_folder,
             args=args,
-            utils_dicts=utils_dicts,
             dataset_path=dataset_path,
             c=c,
-            gamma_list=gamma_list,
-            sigma_gamma_list=sigma_gamma_list,
-            eta=eta_random
+            gamma_list=args["gamma"],
+            sigma_gamma_list=args["sigma"],
+            eta=eta_random,
+            introduce_bias=introduce_bias,
+            target=target,
+            influence_percentage=influence_percentage,
         )

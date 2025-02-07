@@ -7,6 +7,7 @@ import pandas as pd
 def get_dataset(dataset_path):
 
     videos_labels_dict = {}
+    reverse_videos_labels_dict = {}
     videos_slants_dict = {}  # real video id
     reverse_users_dict = {}
     reverse_videos_dict = {}
@@ -55,6 +56,8 @@ def get_dataset(dataset_path):
 
             videos_labels_dict[videos_dict[video_id]] = label
 
+            reverse_videos_labels_dict[video_id] = label
+
             videos_slants_dict[video_id] = slant
 
             if prev_user_id is None or prev_user_id == users_dict[user_id]:
@@ -73,7 +76,8 @@ def get_dataset(dataset_path):
         videos_labels_dict,
         videos_slants_dict,
         reverse_users_dict,
-        reverse_videos_dict)
+        reverse_videos_dict,
+        reverse_videos_labels_dict)
 
     return history_dataset, uir_dataset, utils_dicts
 
@@ -82,11 +86,14 @@ def create_dataset_recbole(args, uir_dataset):
     path = args['path']
     folder = args['folder']
     proportions = args['proportions']
-    strategy = args["strategy"]
+    name = args['name']
 
     final_path = path + folder + "/recbole/"
 
     base_path = "{}".format(proportions)
+
+    if base_path == '':
+        base_path = f"{name}"
 
     final_path = final_path + base_path + "/"
     inter_name = base_path + ".inter"

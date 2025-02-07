@@ -33,7 +33,7 @@ def get_parameter_dict(args, model_checkpoint_folder):
         "metrics": ["Recall", "nDCG", "Hit"],
         "valid_metric": "Recall@10",
         "load_col": {"inter": ["user_id", "item_id", "rating"]},
-        "data_path": path + folder + "recbole",
+        "data_path": os.path.join(path, folder, "recbole"),
         "checkpoint_dir": model_checkpoint_folder,
         "epochs": 100,
         "gpu_id": args['gpu_id']
@@ -95,20 +95,10 @@ def convert_dataset_to_dataframe(dataset, utils_dicts, non_rad_users, semi_rad_u
 
 def get_model_structure_and_trainer(
         config,
-        logger,
         args,
-        utils_dicts=None,
-        users=None,
-        mean_slant_users=None,
-        items_labels=None,
-        non_rad_users=None,
-        semi_rad_users=None,
         num_users=100,
         num_items=0,
-        transient_nodes=None,
-        reverse_videos_dict=None,
-        history_dataset=None,
-        saving_path=None):
+        history_dataset=None):
     dataset = create_dataset(config)
     # logger.info(dataset)
 
@@ -121,8 +111,6 @@ def get_model_structure_and_trainer(
         model = RecVAE(
             config=config,
             dataset=train_data.dataset,
-            mean_slant_users=mean_slant_users,
-            items_labels=items_labels,
             num_users=num_users,
             num_items=num_items).to(
             config["device"])
@@ -133,8 +121,6 @@ def get_model_structure_and_trainer(
         if model_name == "LightGCN":
             model = LightGCN(config,
                              train_data.dataset,
-                             mean_slant_users=mean_slant_users,
-                             items_labels=items_labels,
                              num_users=num_users,
                              num_items=num_items).to(config["device"])
         elif model_name == "NGCF":
@@ -148,25 +134,14 @@ def get_model_structure_and_trainer(
 def load_model(
         model_checkpoint_folder,
         config,
-        logger,
         args,
-        utils_dicts=None,
-        users=None,
-        mean_slant_users=None,
-        items_labels=None,
-        non_rad_users=None,
-        semi_rad_users=None,
         num_users=100,
         num_items=0,
-        transient_nodes=None,
-        reverse_videos_dict=None,
-        history_dataset=None,
-        saving_path=None):
+        history_dataset=None):
     model, trainer, data, history_dataset = get_model_structure_and_trainer(
-        config=config, logger=logger, args=args, utils_dicts=utils_dicts, users=users,
-        mean_slant_users=mean_slant_users, items_labels=items_labels, history_dataset=history_dataset,
-        num_users=num_users, num_items=num_items, non_rad_users=non_rad_users, semi_rad_users=semi_rad_users,
-        transient_nodes=transient_nodes, reverse_videos_dict=reverse_videos_dict, saving_path=saving_path)
+        config=config, args=args,
+        history_dataset=history_dataset,
+        num_users=num_users, num_items=num_items)
 
     model_files = os.listdir(model_checkpoint_folder)
     checkpoint_file = model_files[-1]
@@ -175,7 +150,7 @@ def load_model(
 
     print(checkpoint_path)
 
-    if torch.cuda.is_available():
+    if torch.cuda.is_available() and args["gpu_id"] != "cpu":
         map_location = torch.device("cuda:{}".format(config.gpu_id))
     else:
         map_location = torch.device("cpu")
@@ -190,18 +165,9 @@ def load_model(
 def train_model(
         args,
         model_checkpoint_folder=None,
-        interaction_dict=None,
         config=None,
-        users=None,
-        mean_slant_users=None,
-        items_labels=None,
-        logger=None,
-        utils_dicts=None,
-        non_rad_users=None,
-        semi_rad_users=None,
         num_users=100,
-        num_items=0,
-        saving_path=None):
+        num_items=0):
 
     if exists(model_checkpoint_folder):
         files_to_delete = os.listdir(model_checkpoint_folder)
@@ -212,10 +178,8 @@ def train_model(
         os.makedirs(model_checkpoint_folder)
 
     model, trainer, data, _ = get_model_structure_and_trainer(
-        config=config, logger=logger, args=args, users=users, utils_dicts=utils_dicts,
-        mean_slant_users=mean_slant_users, items_labels=items_labels,
-        num_users=num_users, num_items=num_items, non_rad_users=non_rad_users, semi_rad_users=semi_rad_users,
-        saving_path=saving_path)
+        config=config, args=args,
+        num_users=num_users, num_items=num_items)
 
     train_data, valid_data, test_data = data
 

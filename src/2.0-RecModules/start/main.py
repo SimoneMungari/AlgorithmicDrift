@@ -29,8 +29,16 @@ def handle_processes(cmd, thread):
 
     print("Finished handle process {}".format(cmd[4]))
 
-path = "../../data/processed/"
-folder = "SyntheticDataset/History/"
+
+
+SYNTHETIC = "False"
+
+if SYNTHETIC == "True":
+    path = "../../data/processed/"
+    folder = "SyntheticDataset/History/"
+else:
+    path = "../../data/processed/"
+    folder = "movielens-1m/"
 
 if not exists(path):
     os.makedirs(path)
@@ -40,10 +48,7 @@ if not exists(path + folder):
 
 gpu_id = "cpu"
 
-user_count_start_args = "0"
-user_count_end_args = "2000"
-
-module = "training"  # training, evaluation, generation
+module = "generation"  # training, evaluation, generation
 dataset = None
 
 if len(sys.argv) >= 3:
@@ -56,17 +61,25 @@ strategy = "No_strategy"
 if strategy == "Organic":
     module = "generation"
 
-proportions = "0.05_0.9_0.05"
+if SYNTHETIC == "False":
+    proportions = ""
+    name = "movielens-1m"
+else:
+    proportions = "0.05_0.9_0.05"
+    name = ""
+
 model = "RecVAE"
+introduce_bias = "True"
+target = "Horror"
+influence_percentage = "0.3"
+
 c = "0.75"
 
-gamma_non_rad = "0.5"
-gamma_semi_rad = "0.99"
-gamma_rad = "0.75"
+#gamma = "0.5,0.99,0.75"
+gamma = "0.05,0.05,0.05,0.05,0.05,0.05,0.05"
 
-sigma_gamma_non_rad = "0.01"
-sigma_gamma_semi_rad = "0.01"
-sigma_gamma_rad = "0.01"
+# sigma = "0.01,0.01,0.01"
+sigma = "0.01,0.01,0.01,0.01,0.01,0.01,0.01"
 
 eta_random = "0.0"
 
@@ -81,13 +94,12 @@ process_args_1 = ["python",
               folder,
               model,
               'recbole_dataset',
-              proportions,
               strategy,
-              user_count_start_args,
-              user_count_end_args,
+              SYNTHETIC,
+              proportions,
+              name,
               gpu_id,
-              c, gamma_non_rad, gamma_semi_rad, gamma_rad, sigma_gamma_non_rad, sigma_gamma_semi_rad,
-                  sigma_gamma_rad, eta_random]
+              c, gamma, sigma, eta_random, introduce_bias, target, influence_percentage]
 
 process_args_2 = ["python",
               program_to_call,
@@ -95,13 +107,12 @@ process_args_2 = ["python",
               folder,
               model,
               module,
-              proportions,
               strategy,
-              user_count_start_args,
-              user_count_end_args,
+              SYNTHETIC,
+              proportions,
+              name,
               gpu_id,
-              c, gamma_non_rad, gamma_semi_rad, gamma_rad, sigma_gamma_non_rad, sigma_gamma_semi_rad,
-                  sigma_gamma_rad, eta_random]
+              c, gamma, sigma, eta_random, introduce_bias, target, influence_percentage]
 
 handle_processes(process_args_1, 0)
 handle_processes(process_args_2, 0)

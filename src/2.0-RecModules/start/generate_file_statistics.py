@@ -9,9 +9,9 @@ import pandas as pd
 
 from scipy.sparse import csr_matrix
 from sklearn.preprocessing import normalize
-from floweaver import *
 
 from os import listdir
+from os.path import isfile, join
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -83,6 +83,9 @@ def load_graphs(graphs_path):
         count = 0
 
         for index, row in data_node.iterrows():
+            # G.vs.find(row['Label'])['label'] = row['Label']
+            # G.vs.find(row['Label'])['category'] = row['Category'].lower()
+
             G.vs.find(count)['label'] = row['Label']
             G.vs.find(count)['category'] = row['Category'].lower()
 
@@ -343,16 +346,12 @@ def get_absorbing_rads(graphs, synthetic_df=None, users_category=None, nodes_cat
     return absorbing_rads
 
 
-def get_harmful_rate_before_and_after_recs(graphs, synthetic_df, users_category=None, kind_of_category='Orientation'):
+def get_harmful_rate_before_and_after_recs(graphs, synthetic_df):
     users_graphs = graphs
     users = synthetic_df.groupby("User")
     videos = synthetic_df["Video"]
     labels = synthetic_df["Label"]
     labels_dict = dict(zip(videos, labels))
-
-    if users_category is not None:
-        users_graphs = get_graphs_by_users_category(
-            users_graphs, synthetic_df, users_category=users_category, kind_of_category=kind_of_category)
 
     harmful_rate_before_recs = []
     harmful_rate_after_recs = []
@@ -368,34 +367,9 @@ def get_harmful_rate_before_and_after_recs(graphs, synthetic_df, users_category=
     return np.array(harmful_rate_before_recs), np.array(harmful_rate_after_recs)
 
 
-def get_harmful_rate_before_and_after_recs(graphs, synthetic_df, users_category=None):
-    users_graphs = graphs
-    users = synthetic_df.groupby("User")
-    videos = synthetic_df["Video"]
-    labels = synthetic_df["Label"]
-    labels_dict = dict(zip(videos, labels))
-
-    if users_category is not None:
-        users_graphs = get_graphs_by_users_category(
-            users_graphs, synthetic_df, users_category=users_category)
-
-    harmful_rate_before_recs = []
-    harmful_rate_after_recs = []
-
-    for graph, user_g in users_graphs:
-        graph_harmful_nodes = [labels_dict[x] for x in graph.vs["label"] if labels_dict[x] == "harmful"]
-        harmful_rate_after_recs.append(len(graph_harmful_nodes) / graph.vcount())
-
-        temp_df = users.get_group(user_g)
-        harmful_user_rate_before_recs = temp_df[temp_df["Label"] == "harmful"]["Label"]
-        harmful_rate_before_recs.append(len(harmful_user_rate_before_recs) / len(temp_df))
-
-    return np.array(harmful_rate_before_recs), np.array(harmful_rate_after_recs)
-
-
-def get_delta_harmful_rates(graphs, synthetic_df, users_category=None):
+def get_delta_harmful_rates(graphs, synthetic_df):
     harmful_before_recs, harmful_after_recs = get_harmful_rate_before_and_after_recs(
-        graphs, synthetic_df, users_category=users_category)
+        graphs, synthetic_df)
 
     delta_harmful = harmful_after_recs - harmful_before_recs
 
@@ -450,15 +424,15 @@ def save_parallel_dhc_and_ads(sample, df, samples_graphs, models_to_load):
         for i, model in enumerate(models_to_load)
     )
 
-path = '../../data/processed/'
+path = '../../new_data/processed/'
 folder = 'SyntheticDataset/History/'
 
 orientations = ["non radicalized", "semi-radicalized", "radicalized"]
 
-weights_c_list = ["0.75_0.25_gamma1_0.5_sigmagamma1_0.01_gamma2_0.99_sigmagamma2_0.01_gamma3_0.75_sigmagamma3_0.01_eta_0.0/"]
-models_to_load = ["RecVAE", "Organic"]
+weights_c_list = ["0.75_0.25_gamma_0.1_eta_0.0/"]
+models_to_load = ["RecVAE"]
 
-datasets_for_statistics = ["0.2_0.6_0.2"]
+datasets_for_statistics = ["Eta_0.2_0.6_0.2_prova"]
 
 samples_dfs, samples, saving_path = get_samples(datasets_for_statistics)
 print(samples)

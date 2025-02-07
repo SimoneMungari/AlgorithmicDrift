@@ -18,6 +18,12 @@ def get_dataset_name_and_paths(args):
         saving_path = dataset_path
         saving_path += "{}/".format(strategy)
 
+    elif folder.startswith("movielens-1m"):
+
+        dataset_name = "Histories"
+        dataset_path = path + folder + "/"
+        saving_path = dataset_path
+
     return dataset_path, dataset_name, saving_path
 
 
@@ -48,64 +54,64 @@ def get_parsed_args(argv):
     path = ""
     folder = ""
     model = "RecVAE"
-    module = "evaluation"
-    proportions = ""
+    module = "generation"
     strategy = "No_strategy"
+    SYNTHETIC = False
+    name = ""
+
+    proportions = ""
     topk = 10
-    user_count_start = 0
-    user_count_end = 500  # num_users
     gpu_id = "0"
     c = 1.0
-    gamma_non_rad = 1.0
-    gamma_semi_rad = 1.0
-    gamma_rad = 1.0
-    sigma_gamma_non_rad = 1.0
-    sigma_gamma_semi_rad = 1.0
-    sigma_gamma_rad = 1.0
-    eta_random = 0.01
+    gamma = [0.0, 0.0, 0.0]
+    sigma = [0.0, 0.0, 0.0]
+    eta_random = 0.0
+    introduce_bias = True
+    target = "Horror"
+    influence_percentage = 0.3
 
     if len(argv) > 1:
 
-        if argv[2].startswith("SyntheticDataset"):
-            _, path, folder, model, module, proportions, strategy, user_count_start, user_count_end, gpu_id, c,\
-                gamma_non_rad, gamma_semi_rad, gamma_rad, sigma_gamma_non_rad,\
-                sigma_gamma_semi_rad, sigma_gamma_rad, eta_random = argv
+        #if argv[2].startswith("SyntheticDataset"):
+        _, path, folder, model, module, strategy, SYNTHETIC, proportions, name, gpu_id, c,\
+            gamma, sigma, eta_random, introduce_bias, target, influence_percentage = argv
 
-            topk = int(topk)
-            user_count_start = int(user_count_start)
-            user_count_end = int(user_count_end)
+        topk = int(topk)
+        gamma = [float(g) for g in gamma.split(",")]
+        sigma = [float(s) for s in sigma.split(",")]
 
-            # Remember to check paths
-            print(
-                path,
-                folder,
-                model,
-                module,
-                proportions,
-                strategy,
-                topk,
-                user_count_start,
-                user_count_end,
-                gpu_id, c, gamma_non_rad, gamma_semi_rad, gamma_rad, sigma_gamma_non_rad,
-                sigma_gamma_semi_rad, sigma_gamma_rad, eta_random)
+        SYNTHETIC = False if SYNTHETIC == "False" else True
+        introduce_bias = True if introduce_bias == "True" else False
+        influence_percentage = float(influence_percentage)
+
+        # Remember to check paths
+        print(
+            path,
+            folder,
+            model,
+            module,
+            strategy,
+            SYNTHETIC,
+            proportions,
+            name,
+            topk,
+            gpu_id, c, gamma, sigma, eta_random, introduce_bias, target, influence_percentage)
 
     keys = [
         "path",
         "folder",
         "model",
         "module",
-        "proportions",
         "strategy",
+        "synthetic",
+        "proportions",
+        "name",
         "topk",
-        "user_count_start",
-        "user_count_end",
         "gpu_id",
         "c",
-        "gamma_non_rad", "gamma_semi_rad", "gamma_rad", "sigma_gamma_non_rad",
-                "sigma_gamma_semi_rad", "sigma_gamma_rad", "eta_random"]
-    values = [path, folder, model, module, proportions, strategy, topk,
-              user_count_start, user_count_end, gpu_id, c, gamma_non_rad, gamma_semi_rad, gamma_rad, sigma_gamma_non_rad,
-                sigma_gamma_semi_rad, sigma_gamma_rad, eta_random]
+        "gamma", "sigma", "eta_random", "introduce_bias", "target", "influence_percentage"]
+    values = [path, folder, model, module, strategy, SYNTHETIC, proportions, name, topk, gpu_id, c, gamma, sigma,
+              eta_random, introduce_bias, target, influence_percentage]
 
     args = dict(zip(keys, values))
 
